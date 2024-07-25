@@ -1,0 +1,39 @@
+- name: Install Apache
+  yum:
+    name: httpd
+    state: present
+
+- name: Start and enable Apache
+  service:
+    name: httpd
+    state: started
+    enabled: yes
+
+- name: Copy index.html to web server
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+
+- name: Install mod_ssl
+  yum:
+    name: mod_ssl
+    state: present
+
+- name: Create self-signed SSL certificate
+  command: openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=localhost" -keyout /etc/pki/tls/private/localhost.key -out /etc/pki/tls/certs/localhost.crt
+
+- name: Configure SSL in Apache
+  lineinfile:
+    path: /etc/httpd/conf.d/ssl.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^SSLCertificateFile', line: 'SSLCertificateFile /etc/pki/tls/certs/localhost.crt' }
+    - { regexp: '^SSLCertificateKeyFile', line: 'SSLCertificateKeyFile /etc/pki/tls/private/localhost.key' }
+    - { regexp: '^Listen 443 https$', line: 'Listen 443 https' }
+
+- name: Redirect HTTP to HTTPS
+  lineinfile:
+    path: /etc/httpd/conf/httpd.conf
+    line: "Redirect / https://{{ ansible_default_ipv4.address }}/"
+    state: present

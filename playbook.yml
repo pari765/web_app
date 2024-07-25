@@ -1,0 +1,5 @@
+
+- hosts: all
+  become_user: yes
+  roles:
+    - webserver
